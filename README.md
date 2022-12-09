@@ -1,4 +1,4 @@
-tools.deps.alpha
+tools.deps
 ========================================
 
 A functional API for transitive dependency graph expansion and the creation of classpaths.
@@ -10,13 +10,13 @@ Clojure "endeavors to be a general-purpose language suitable in those areas wher
 * the classpath used when invoking JVM processes (and/or URLClassLoaders)
 * transitive dependency download and resolution from Maven repositories
 
-tools.deps.alpha aims to provide a functional API to access these capabilities.
+tools.deps aims to provide a functional API to access these capabilities.
 
-tools.deps.alpha makes it simple and easy to interactively consume JVM libraries, without dragging in unrelated concerns of building programs or project management. (It should also be a useful shared resource for future work on project and build tools.) 
+tools.deps makes it simple and easy to interactively consume JVM libraries, without dragging in unrelated concerns of building programs or project management. (It should also be a useful shared resource for future work on project and build tools.) 
 
-tools.deps.alpha will support package installers for Clojure (e.g. brew, apt-get, etc) to provide a path for Clojure installation and ongoing Clojure development.
+tools.deps will support package installers for Clojure (e.g. brew, apt-get, etc) to provide a path for Clojure installation and ongoing Clojure development.
 
-The Clojure 1.9 release for the first time requires multiple artifacts to run Clojure (clojure, spec.alpha, and core.specs.alpha) and thus the issues of transitive dependency are now immediately in front of a Clojure user in the first minute.
+The Clojure 1.9 release for the first time required multiple artifacts to run Clojure (clojure, spec.alpha, and core.specs.alpha) and thus the issues of transitive dependency are now immediately in front of a Clojure user in the first minute.
 
 Maven-artifacts-first orientation of current tooling has created great rigidity and friction for dev processes - making it hard to e.g. work with libs not yet building/publishing artifacts (new users!), working on speculative changes w/o artifacts, working on mutual changes across multiple libs, give control to a 3rd party tool to manage shared dependencies, and to directly leverage git which is now widely used as a source of truth for code lifecycles.
 
@@ -31,20 +31,20 @@ Also see:
 
 # Release Information
 
-Latest release: 0.15.1254
+Latest release: TODO
 
-* [All released versions](https://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.clojure%22%20AND%20a%3A%22tools.deps.alpha%22)
+* [All released versions](https://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.clojure%22%20AND%20a%3A%22tools.deps%22)
 
 [deps.edn](https://clojure.org/guides/deps_and_cli) dependency information:
 
 ```
-org.clojure/tools.deps.alpha {:mvn/version "0.15.1254"}
+org.clojure/tools.deps {:mvn/version "TODO"}
 ```
 
 [Leiningen](https://github.com/technomancy/leiningen/) dependency information:
 
 ```
-[org.clojure/tools.deps.alpha "0.15.1254"]
+[org.clojure/tools.deps "TODO"]
 ```
 
 [Maven](https://maven.apache.org) dependency information:
@@ -52,8 +52,8 @@ org.clojure/tools.deps.alpha {:mvn/version "0.15.1254"}
 ```
 <dependency>
   <groupId>org.clojure</groupId>
-  <artifactId>tools.deps.alpha</artifactId>
-  <version>0.15.1254</version>
+  <artifactId>tools.deps</artifactId>
+  <version>TODO</version>
 </dependency>
 ```
 
@@ -61,15 +61,15 @@ org.clojure/tools.deps.alpha {:mvn/version "0.15.1254"}
 
 For info on using tools.deps as a library, see:
 
-* [API Docs](https://clojure.github.io/tools.deps.alpha)
+* [API Docs](https://clojure.github.io/tools.deps)
 
 # Developer Information
 
-* [GitHub project](https://github.com/clojure/tools.deps.alpha)
+* [GitHub project](https://github.com/clojure/tools.deps)
 * [How to contribute](https://clojure.org/community/contributing)
 * [Bug Tracker](https://clojure.atlassian.net/browse/TDEPS)
-* [Continuous Integration](https://build.clojure.org/job/tools.deps.alpha/)
-* [Compatibility Test Matrix](https://build.clojure.org/job/tools.deps.alpha-test-matrix/)
+* [Continuous Integration](https://build.clojure.org/job/tools.deps/)
+* [Compatibility Test Matrix](https://build.clojure.org/job/tools.deps-test-matrix/)
 
 # Copyright and License
 
