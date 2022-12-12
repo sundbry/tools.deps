@@ -53,7 +53,7 @@ org.clojure/tools.deps {:mvn/version "0.16.1264"}
 <dependency>
   <groupId>org.clojure</groupId>
   <artifactId>tools.deps</artifactId>
-  <version>0.16.1260</version>
+  <version>0.16.1264</version>
 </dependency>
 ```
 
