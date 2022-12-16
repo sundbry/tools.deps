@@ -3,6 +3,8 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
+* next
+  * TDEPS-235 Disallow http :mvn-repos
 * 0.16.1264 on Dec 9, 2022
   * Change :deps alias to point to new tools.deps.cli
 * 0.16.1260 on Dec 9, 2022

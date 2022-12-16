@@ -51,8 +51,8 @@
     [org.apache.maven.settings.building DefaultSettingsBuilderFactory]
 
     ;; plexus-utils
-    [org.codehaus.plexus.util.xml Xpp3Dom]
-    ))
+    [org.codehaus.plexus.util.xml Xpp3Dom]))
+
 
 (set! *warn-on-reflection* true)
 
@@ -110,7 +110,7 @@
    :update - one of :daily (default), :always, :never, or an interval in minutes
    :checksum - one of :warn (default), :fail, :ignore"
   [name {:keys [enabled update checksum]
-    :or {enabled true, update :daily, checksum :warn}}]
+         :or {enabled true, update :daily, checksum :warn}}]
   (RepositoryPolicy. enabled
     (case update
       :daily RepositoryPolicy/UPDATE_POLICY_DAILY
@@ -131,6 +131,8 @@
   (^RemoteRepository [repo-entry]
    (remote-repo repo-entry (get-settings)))
   (^RemoteRepository [[^String name {:keys [url snapshots releases] :as repo-config}] ^Settings settings]
+   (when (str/starts-with? url "http:")
+     (throw (ex-info (str "Invalid repo url (http not supported): " url) (or repo-config {}))))
    (let [builder (RemoteRepository$Builder. name "default" url)
          maybe-repo (.build builder)
          mirror (select-mirror settings maybe-repo)
@@ -150,8 +152,8 @@
                             (.addPrivateKey (.getPrivateKey server-setting) (.getPassphrase server-setting))
                             (.build)))
          proxy (.setProxy proxy))
-       (.build))))
-  )
+       (.build)))))
+
 
 (defn remote-repos
   ([repos]
