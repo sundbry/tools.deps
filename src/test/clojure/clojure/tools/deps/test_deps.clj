@@ -3,6 +3,7 @@
     [clojure.java.io :as jio]
     [clojure.test :refer [deftest is are testing]]
     [clojure.tools.deps :as deps]
+    [clojure.tools.deps.util :as util]
     [clojure.tools.deps.extensions :as ext]
     [clojure.tools.deps.extensions.faken :as fkn]
     [clojure.tools.deps.util.dir :as dir]
@@ -316,40 +317,28 @@
 
 (deftest calc-basis-extra-deps
   (let [ra {:extra-deps {'org.clojure/tools.deps.alpha {:mvn/version "0.8.677"}}}
-        {:keys [resolve-args libs]} (deps/calc-basis install-data {:resolve-args ra})]
-    ;; basis contains resolve-args
-    (is (= resolve-args ra))
-
+        {:keys [libs]} (deps/calc-basis install-data {:resolve-args ra})
+        expanded-deps (-> libs keys set)]
     ;; libs has extra deps and transitive deps
-    (let [expanded-deps (-> libs keys set)]
-      (is (< 4 (count expanded-deps)))
-      (is (contains? expanded-deps 'org.clojure/tools.deps.alpha)))))
+    (is (< 4 (count expanded-deps)))
+    (is (contains? expanded-deps 'org.clojure/tools.deps.alpha))))
 
 (deftest calc-basis-override-deps
   (let [ra {:extra-deps {'org.clojure/clojure {:mvn/version "1.6.0"}}}
-        {:keys [resolve-args libs]} (deps/calc-basis install-data {:resolve-args ra})]
-    ;; basis contains resolve-args
-    (is (= resolve-args ra))
-
+        {:keys [libs]} (deps/calc-basis install-data {:resolve-args ra})]
     ;; libs has extra deps and transitive deps
     (is (= (get-in libs ['org.clojure/clojure :mvn/version]) "1.6.0"))))
 
 (deftest calc-basis-extra-paths
   (let [cpa {:extra-paths ["x" "y"]}
-        {:keys [classpath-args classpath]} (deps/calc-basis install-data {:classpath-args cpa})]
-    ;; basis contains classpath-args
-    (is (= classpath-args cpa))
-
+        {:keys [classpath]} (deps/calc-basis install-data {:classpath-args cpa})]
     ;; classpath has extra paths
     (is (= {"src" {:path-key :paths}, "x" {:path-key :extra-paths}, "y" {:path-key :extra-paths}}
           (select-cp classpath :path-key)))))
 
 (deftest calc-basis-classpath-overrides
   (let [cpa {:classpath-overrides {'org.clojure/clojure "foo"}}
-        {:keys [classpath-args classpath]} (deps/calc-basis install-data {:classpath-args cpa})]
-    ;; basis contains classpath-args
-    (is (= classpath-args cpa))
-
+        {:keys [classpath]} (deps/calc-basis install-data {:classpath-args cpa})]
     ;; classpath has replaced path
     (is (= (get classpath "foo") {:lib-name 'org.clojure/clojure}))))
 
@@ -455,3 +444,45 @@
                      :project {:deps {'ex/a {:fkn/version "1"}}
                                :aliases {:b {:extra-deps {'ex/b {:fkn/version "1"}}}}}
                      :aliases [:b]})))
+
+;; focus not on merging but on verifying output from single deps.edn + aliases
+(deftest test-create-basis-full
+  (fkn/with-libs
+    {'ex/a {{:fkn/version "1"} nil}
+     'ex/b {{:fkn/version "1"} nil}
+     'ex/c {{:fkn/version "1"} nil}}
+
+    (are [project aliases expected]
+         (let [basis (deps/create-basis {:root nil :user nil :project project :aliases aliases})]
+           ;;(println "\nbasis:")
+           ;;(clojure.pprint/pprint basis)
+           (and (util/submap? project basis)  ;; basis is superset of deps.edn
+                (util/submap? expected basis)))
+
+      ;; no aliases, basis deps case
+      {:deps {'ex/a {:fkn/version "1"}}}
+      []
+      {:libs {'ex/a {:fkn/version "1", :deps/manifest :fkn, :paths ["REPO/ex/a/1/a-1.jar"]}}
+       :classpath {"REPO/ex/a/1/a-1.jar" {:lib-name 'ex/a}}
+       :classpath-roots ["REPO/ex/a/1/a-1.jar"]}
+
+      ;; aliases to add both resolve-args and classpath-args
+      {:deps {'ex/a {:fkn/version "1"}}
+       :aliases {:a1 {:extra-deps {'ex/b {:fkn/version "2"}} ;; mixture of resolve-deps/make-cp args
+                      :extra-paths ["p"]}
+                 :a2 {:override-deps {'ex/b {:fkn/version "1"}}
+                      :default-deps {'ex/c {:fkn/version "1"}}
+                      :classpath-overrides {'ex/a "override.jar"}}}}
+      [:a1 :a2]
+      {:libs {'ex/a {:fkn/version "1", :deps/manifest :fkn, :paths ["REPO/ex/a/1/a-1.jar"]}
+              'ex/b {:fkn/version "1", :deps/manifest :fkn, :paths ["REPO/ex/b/1/b-1.jar"]}}
+       :classpath {"override.jar" {:lib-name 'ex/a}  ;; see override
+                   "REPO/ex/b/1/b-1.jar" {:lib-name 'ex/b}
+                   "p" {:path-key :extra-paths}}  ;; see extra path
+       :classpath-roots ["p" "override.jar" "REPO/ex/b/1/b-1.jar"]  ;; ditto above
+       :basis-args {:root nil, :user nil, :aliases [:a1 :a2]} ;; aliases remembered
+       })))
+
+(comment
+  (test-create-basis-full)
+  )

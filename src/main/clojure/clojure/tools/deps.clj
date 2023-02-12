@@ -741,8 +741,6 @@
         :classpath-overrides
 
   Returns the runtime basis, which is the initial deps edn map plus these keys:
-    :resolve-args - the resolve args passed in, if any
-    :classpath-args - the classpath args passed in, if any
     :libs - lib map, per resolve-deps
     :classpath - classpath map per make-classpath-map
     :classpath-roots - vector of paths in classpath order"
@@ -752,7 +750,7 @@
    (session/with-session
      (let [libs (resolve-deps master-edn resolve-args)
            cp (make-classpath-map master-edn libs classpath-args)]
-       (merge master-edn {:libs libs} cp argmaps)))))
+       (merge master-edn {:libs libs} cp)))))
 
 ;(defn runtime-basis
 ;  "Load the runtime execution basis context and return it."
@@ -797,6 +795,13 @@
    Aliases refer to argmaps in the merged deps that will be supplied to the basis
    subprocesses (tool, resolve-deps, make-classpath-map).
 
+   Options:
+     :root    - dep source, default = :standard
+     :user    - dep source, default = :standard
+     :project - dep source, default = :standard (\"./deps.edn\")
+     :extra   - dep source, default = nil
+     :aliases - coll of aliases, default = nil
+
    The following subprocess argmap args can be provided:
      Key                  Subproc             Description
      :replace-deps        tool                Replace project deps
@@ -807,20 +812,12 @@
      :extra-paths         make-classpath-map  Add additional paths
      :classpath-overrides make-classpath-map  Replace lib path in cp
 
-   Options:
-     :root    - dep source, default = :standard
-     :user    - dep source, default = :standard
-     :project - dep source, default = :standard (\"./deps.edn\")
-     :extra   - dep source, default = nil
-     :aliases - coll of aliases of argmaps  to apply to subprocesses
-
    Returns a runtime basis, which is the initial merged deps edn map plus these keys:
-    :resolve-args - the resolve args passed in, if any
-    :classpath-args - the classpath args passed in, if any
+    :basis-args - the create-basis params used
     :libs - lib map, per resolve-deps
     :classpath - classpath map per make-classpath-map
     :classpath-roots - vector of paths in classpath order"
-  [{:keys [aliases] :as params}]
+  [{:keys [root user project extra aliases] :as params}]
   (let [{root-edn :root user-edn :user project-edn :project extra-edn :extra} (create-edn-maps params)
         edn-maps [root-edn user-edn project-edn extra-edn]
 
@@ -834,8 +831,19 @@
                       (map #(get alias-data %)))
         argmap (apply merge-alias-maps argmap-data)
         project-tooled-edn (tool project-edn argmap)
-        master-edn (merge-edns [root-edn user-edn project-tooled-edn extra-edn])]
-    (calc-basis master-edn {:resolve-args argmap :classpath-args argmap})))
+        master-edn (assoc (merge-edns [root-edn user-edn project-tooled-edn extra-edn])
+                          :basis-args (cond-> {}
+                                        (contains? params :root) (assoc :root root)
+                                        (contains? params :project) (assoc :project project)
+                                        (contains? params :user) (assoc :user user)
+                                        (contains? params :extra) (assoc :extra extra)
+                                        (seq aliases) (assoc :aliases (vec aliases))))
+        resolve-args (select-keys argmap [:extra-deps :override-deps :default-deps :threads :trace])
+        classpath-args (select-keys argmap [:extra-paths :classpath-overrides])]
+    (calc-basis master-edn
+                (cond-> nil
+                  (< 0 (count resolve-args)) (assoc :resolve-args resolve-args)
+                  (< 0 (count classpath-args)) (assoc :classpath-args classpath-args)))))
 
 ;; Load extensions
 (load "/clojure/tools/deps/extensions/maven")

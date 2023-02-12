@@ -31,13 +31,13 @@
    [nil "--tool-mode" "Tool mode (-T), may optionally supply tool-name or tool-aliases"]
    [nil "--tool-name NAME" "Tool name"]
    ;; output files
-   [nil "--libs-file PATH" "Libs cache file to write"]
    [nil "--cp-file PATH" "Classpatch cache file to write"]
    [nil "--jvm-file PATH" "JVM options file"]
    [nil "--main-file PATH" "Main options file"]
    [nil "--manifest-file PATH" "Manifest list file"]
    [nil "--basis-file PATH" "Basis file"]
-   [nil "--skip-cp" "Skip writing .cp and .libs files"]
+   [nil "--exec-file PATH" "Exec args file"]
+   [nil "--skip-cp" "Skip writing .cp files"]
    ;; aliases
    ["-R" "--resolve-aliases ALIASES" "Concatenated resolve-deps alias names" :parse-fn parse/parse-kws]
    ["-C" "--makecp-aliases ALIASES" "Concatenated make-classpath alias names" :parse-fn parse/parse-kws]
@@ -77,17 +77,13 @@
 
 (defn run-core
   "Run make-classpath script from/to data (no file stuff). Returns:
-    {;; Main outputs:
-     :libs lib-map          ;; from resolve-deps, .libs file
-     :cp classpath          ;; from make-classpath, .cp file
-     :main main-opts        ;; effective main opts, .main file
-     :jvm jvm-opts          ;; effective jvm opts, .jvm file
-     :trace trace-log       ;; from resolve-deps, if requested, trace.edn file
-
-     ;; Intermediate/source data:
-     :deps merged-deps      ;; effective merged :deps
-     :paths local-paths     ;; from make-classpath, just effective local paths
-     ;; and any other qualified keys from top level merged deps
+    {;; Outputs:
+     :basis        ;; the basis, including classpath roots
+     :trace        ;; if requested, trace.edn file
+     :jvm          ;; effective jvm opts for .jvm file
+     :main         ;; effective main opts for .main file
+     :manifests    ;; manifest files used in making classpath
+     :execute-args ;; for -X/-T
     }"
   [{:keys [install-deps user-deps project-deps config-data ;; all deps.edn maps
            tool-mode tool-name tool-resolver ;; -T options
@@ -126,20 +122,26 @@
                          (assoc execute-args :exec-args (get-in merge-edn [:aliases arg-kw]))
                          execute-args))
         basis (if skip-cp
-                (when (pos? (count execute-args))
-                  {:execute-args execute-args})
-                (deps/calc-basis merge-edn
-                  (cond-> {}
-                    resolve-args (assoc :resolve-args resolve-args)
-                    cp-args (assoc :classpath-args cp-args)
-                    execute-args (assoc :execute-args execute-args))))
+                nil
+                (deps/calc-basis
+                 (assoc merge-edn
+                        :basis-args (cond-> {} ;; :root and :project are always :standard
+                                      (nil? user-deps) (assoc :user nil) ;; -Srepro => :user nil
+                                      config-data (assoc :extra config-data)  ;; -Sdeps => :extra ...
+                                      (seq combined-exec-aliases) (assoc :aliases (vec combined-exec-aliases))))
+                 (cond-> nil
+                   resolve-args (assoc :resolve-args resolve-args)
+                   cp-args (assoc :classpath-args cp-args)
+                   execute-args (assoc :execute-args execute-args))))
+        libs (:libs basis)
+        trace (-> libs meta :trace)
 
         ;; check for unprepped libs
-        _ (deps/prep-libs! (:libs basis) {:action :error} basis)
+        _ (deps/prep-libs! libs {:action :error} basis)
 
         ;; determine manifest files to add to cache check
         manifests (->>
-                    (for [[lib coord] (:libs basis)]
+                    (for [[lib coord] libs]
                       (let [mf (ext/manifest-type lib coord basis)]
                         (ext/manifest-file lib coord (:deps/manifest mf) basis)))
                     (remove nil?)
@@ -150,11 +152,12 @@
         main (seq (get exec-argmap :main-opts))]
     (when (and main repl-aliases)
       (io/printerrln "WARNING: Use of :main-opts with -A is deprecated. Use -M instead."))
-    (cond-> basis
+    (cond-> {:basis basis}
+      trace (assoc :trace trace)
       jvm (assoc :jvm jvm)
-      ;; FUTURE: narrow this to (and main main-aliases)
-      main (assoc :main main)
-      manifests (assoc :manifests manifests))))
+      main (assoc :main main)  ;; FUTURE: narrow this to (and main main-aliases)
+      manifests (assoc :manifests manifests)
+      (pos? (count execute-args)) (assoc :execute-args execute-args))))
 
 (defn read-deps
   [name]
@@ -173,24 +176,25 @@
 
 (defn run
   "Run make-classpath script. See -main for details."
-  [{:keys [config-user config-project libs-file cp-file jvm-file main-file basis-file manifest-file skip-cp trace tree] :as opts}]
+  [{:keys [config-user config-project cp-file jvm-file main-file basis-file manifest-file exec-file skip-cp trace tree] :as opts}]
   (let [opts' (merge opts {:install-deps (deps/root-deps)
                            :user-deps (read-deps config-user)
                            :project-deps (read-deps config-project)
                            :tool-resolver resolve-tool-args})
-        {:keys [libs classpath-roots jvm main manifests] :as basis} (run-core opts')
-        trace-log (-> libs meta :trace)]
+        {:keys [basis jvm main manifests execute-args], trace-log :trace, :as basis} (run-core opts')
+        {:keys [libs classpath-roots]} basis]
     (when trace
       (spit "trace.edn" (binding [*print-namespace-maps* false] (with-out-str (pprint/pprint trace-log)))))
     (when tree
       (-> trace-log tree/trace->tree (tree/print-tree nil)))
     (when-not skip-cp
-      (io/write-file libs-file (binding [*print-namespace-maps* false] (pr-str libs)))
       (io/write-file cp-file (-> classpath-roots deps/join-classpath)))
     (io/write-file basis-file (binding [*print-namespace-maps* false] (pr-str basis)))
     (write-lines jvm jvm-file)
     (write-lines main main-file)
-    (write-lines manifests manifest-file)))
+    (write-lines manifests manifest-file)
+    (when execute-args
+      (io/write-file exec-file (binding [*print-namespace-maps* false] (pr-str execute-args))))))
 
 (defn -main
   "Main entry point for make-classpath script.
@@ -201,12 +205,12 @@
     --config-data={...} - deps.edn as data (from -Sdeps)
     --tool-mode - flag for tool mode
     --tool-name - name of tool to run
-    --libs-file=path - libs cache file to write
     --cp-file=path - cp cache file to write
     --jvm-file=path - jvm opts file to write
     --main-file=path - main opts file to write
     --manifest-file=path - manifest list file to write
     --basis-file=path - basis file to write
+    --exec-file=path - exec file to write
     -Rresolve-aliases - concatenated resolve-deps alias names
     -Cmakecp-aliases - concatenated make-classpath alias names
     -Mmain-aliases - concatenated main-opt alias names
@@ -215,11 +219,11 @@
     -Taliases - concatenated tool alias names
 
   Resolves the dependencies and updates the lib, classpath, etc files.
-  The libs file is at <cachedir>/<hash>.libs
   The cp file is at <cachedir>/<hash>.cp
   The main opts file is at <cachedir>/<hash>.main (if needed)
   The jvm opts file is at <cachedir>/<hash>.jvm (if needed)
-  The manifest file is at <cachedir>/<hash>.manifest (if needed)"
+  The manifest file is at <cachedir>/<hash>.manifest (if needed)
+  The exec file is at <cachedir>/<hash>.exec (if needed)"
   [& args]
   (try
     (let [{:keys [options errors]} (parse-opts args)]
