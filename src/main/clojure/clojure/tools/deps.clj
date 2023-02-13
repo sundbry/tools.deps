@@ -813,7 +813,7 @@
      :classpath-overrides make-classpath-map  Replace lib path in cp
 
    Returns a runtime basis, which is the initial merged deps edn map plus these keys:
-    :basis-args - the create-basis params used
+    :basis-config - the create-basis params used
     :libs - lib map, per resolve-deps
     :classpath - classpath map per make-classpath-map
     :classpath-roots - vector of paths in classpath order"
@@ -832,12 +832,12 @@
         argmap (apply merge-alias-maps argmap-data)
         project-tooled-edn (tool project-edn argmap)
         master-edn (assoc (merge-edns [root-edn user-edn project-tooled-edn extra-edn])
-                          :basis-args (cond-> {}
-                                        (contains? params :root) (assoc :root root)
-                                        (contains? params :project) (assoc :project project)
-                                        (contains? params :user) (assoc :user user)
-                                        (contains? params :extra) (assoc :extra extra)
-                                        (seq aliases) (assoc :aliases (vec aliases))))
+                          :basis-config (cond-> {}
+                                          (contains? params :root) (assoc :root root)
+                                          (contains? params :project) (assoc :project project)
+                                          (contains? params :user) (assoc :user user)
+                                          (contains? params :extra) (assoc :extra extra)
+                                          (seq aliases) (assoc :aliases (vec aliases))))
         resolve-args (select-keys argmap [:extra-deps :override-deps :default-deps :threads :trace])
         classpath-args (select-keys argmap [:extra-paths :classpath-overrides])]
     (calc-basis master-edn

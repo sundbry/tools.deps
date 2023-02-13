@@ -480,7 +480,7 @@
                    "REPO/ex/b/1/b-1.jar" {:lib-name 'ex/b}
                    "p" {:path-key :extra-paths}}  ;; see extra path
        :classpath-roots ["p" "override.jar" "REPO/ex/b/1/b-1.jar"]  ;; ditto above
-       :basis-args {:root nil, :user nil, :aliases [:a1 :a2]} ;; aliases remembered
+       :basis-config {:root nil, :user nil, :aliases [:a1 :a2]} ;; aliases remembered
        })))
 
 (comment

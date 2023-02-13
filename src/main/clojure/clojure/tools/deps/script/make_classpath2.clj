@@ -125,10 +125,10 @@
                 nil
                 (deps/calc-basis
                  (assoc merge-edn
-                        :basis-args (cond-> {} ;; :root and :project are always :standard
-                                      (nil? user-deps) (assoc :user nil) ;; -Srepro => :user nil
-                                      config-data (assoc :extra config-data)  ;; -Sdeps => :extra ...
-                                      (seq combined-exec-aliases) (assoc :aliases (vec combined-exec-aliases))))
+                        :basis-config (cond-> {} ;; :root and :project are always :standard
+                                        (nil? user-deps) (assoc :user nil) ;; -Srepro => :user nil
+                                        config-data (assoc :extra config-data)  ;; -Sdeps => :extra ...
+                                        (seq combined-exec-aliases) (assoc :aliases (vec combined-exec-aliases))))
                  (cond-> nil
                    resolve-args (assoc :resolve-args resolve-args)
                    cp-args (assoc :classpath-args cp-args)
