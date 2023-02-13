@@ -3,7 +3,12 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
-* next
+* 0.16.1281 on Feb 12, 2023
+  * Update to tools.gitlibs 2.5.190
+* 0.16.1277 on Feb 12, 2023
+  * Update to tools.gitlibs 2.5.190
+* 0.16.1273 on Feb 11, 2023
+  * Update to tools.gitlibs 2.5.186
   * TDEPS-235 Disallow http :mvn-repos
 * 0.16.1264 on Dec 9, 2022
   * Change :deps alias to point to new tools.deps.cli
