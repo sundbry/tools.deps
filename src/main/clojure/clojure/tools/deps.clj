@@ -818,32 +818,35 @@
     :classpath - classpath map per make-classpath-map
     :classpath-roots - vector of paths in classpath order"
   [{:keys [root user project extra aliases] :as params}]
-  (let [{root-edn :root user-edn :user project-edn :project extra-edn :extra} (create-edn-maps params)
+  (let [basis-config (cond-> nil
+                       (contains? params :root) (assoc :root root)
+                       (contains? params :project) (assoc :project project)
+                       (contains? params :user) (assoc :user user)
+                       (contains? params :extra) (assoc :extra extra)
+                       (seq aliases) (assoc :aliases (vec aliases)))
+
+        {root-edn :root user-edn :user project-edn :project extra-edn :extra} (create-edn-maps params)
         edn-maps [root-edn user-edn project-edn extra-edn]
 
         alias-data (->> edn-maps
-                     (map :aliases)
-                     (remove nil?)
-                     (apply merge-with merge))
-
+                        (map :aliases)
+                        (remove nil?)
+                        (apply merge-with merge))
         argmap-data (->> aliases
-                      (remove nil?)
-                      (map #(get alias-data %)))
+                         (remove nil?)
+                         (map #(get alias-data %)))
         argmap (apply merge-alias-maps argmap-data)
+
         project-tooled-edn (tool project-edn argmap)
-        master-edn (assoc (merge-edns [root-edn user-edn project-tooled-edn extra-edn])
-                          :basis-config (cond-> {}
-                                          (contains? params :root) (assoc :root root)
-                                          (contains? params :project) (assoc :project project)
-                                          (contains? params :user) (assoc :user user)
-                                          (contains? params :extra) (assoc :extra extra)
-                                          (seq aliases) (assoc :aliases (vec aliases))))
+        master-edn (cond-> (merge-edns [root-edn user-edn project-tooled-edn extra-edn])
+                     (pos? (count argmap)) (assoc :argmap argmap)
+                     basis-config (assoc :basis-config basis-config))
         resolve-args (select-keys argmap [:extra-deps :override-deps :default-deps :threads :trace])
         classpath-args (select-keys argmap [:extra-paths :classpath-overrides])]
     (calc-basis master-edn
                 (cond-> nil
-                  (< 0 (count resolve-args)) (assoc :resolve-args resolve-args)
-                  (< 0 (count classpath-args)) (assoc :classpath-args classpath-args)))))
+                  (pos? (count resolve-args)) (assoc :resolve-args resolve-args)
+                  (pos? (count classpath-args)) (assoc :classpath-args classpath-args)))))
 
 ;; Load extensions
 (load "/clojure/tools/deps/extensions/maven")
