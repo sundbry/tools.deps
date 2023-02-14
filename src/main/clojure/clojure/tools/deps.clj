@@ -814,6 +814,7 @@
 
    Returns a runtime basis, which is the initial merged deps edn map plus these keys:
     :basis-config - the create-basis params used
+    :argmap - effective argmap (after resolving and merging argmaps from aliases)
     :libs - lib map, per resolve-deps
     :classpath - classpath map per make-classpath-map
     :classpath-roots - vector of paths in classpath order"
@@ -842,7 +843,17 @@
                      (pos? (count argmap)) (assoc :argmap argmap)
                      basis-config (assoc :basis-config basis-config))
         resolve-args (select-keys argmap [:extra-deps :override-deps :default-deps :threads :trace])
-        classpath-args (select-keys argmap [:extra-paths :classpath-overrides])]
+        classpath-args (select-keys argmap [:extra-paths :classpath-overrides])
+
+        ;; *** NOTE:
+        ;; Some callers expect to find other argmap stuff in these args
+        ;; (even though this isn't documented). To avoid breaking them, reset
+        ;; resolve-args and classpath-args to argmap.
+        ;; Once those tools have migrated, remove this:
+        resolve-args argmap
+        classpath-args argmap
+        ;; ***
+        ]
     (calc-basis master-edn
                 (cond-> nil
                   (pos? (count resolve-args)) (assoc :resolve-args resolve-args)
