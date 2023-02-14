@@ -725,10 +725,10 @@
                {:unprepped unprepped})))))
 
 (defn calc-basis
-  "Calculates and returns the runtime basis from a master deps edn map, modifying
+  "Calculates and returns the runtime basis from a merged deps edn map, modifying
    resolve-deps and make-classpath args as needed.
 
-    master-edn - a master deps edn map
+    merged-edn - a merged deps edn map
     args - an optional map of arguments to constituent steps, keys:
       :resolve-args - map of args to resolve-deps, with possible keys:
         :extra-deps
@@ -744,13 +744,13 @@
     :libs - lib map, per resolve-deps
     :classpath - classpath map per make-classpath-map
     :classpath-roots - vector of paths in classpath order"
-  ([master-edn]
-   (calc-basis master-edn nil))
-  ([master-edn {:keys [resolve-args classpath-args] :as argmaps}]
+  ([merged-edn]
+   (calc-basis merged-edn nil))
+  ([merged-edn {:keys [resolve-args classpath-args] :as argmaps}]
    (session/with-session
-     (let [libs (resolve-deps master-edn resolve-args)
-           cp (make-classpath-map master-edn libs classpath-args)]
-       (merge master-edn {:libs libs} cp)))))
+     (let [libs (resolve-deps merged-edn resolve-args)
+           cp (make-classpath-map merged-edn libs classpath-args)]
+       (merge merged-edn {:libs libs} cp)))))
 
 ;(defn runtime-basis
 ;  "Load the runtime execution basis context and return it."
@@ -839,25 +839,19 @@
         argmap (apply merge-alias-maps argmap-data)
 
         project-tooled-edn (tool project-edn argmap)
-        master-edn (cond-> (merge-edns [root-edn user-edn project-tooled-edn extra-edn])
-                     (pos? (count argmap)) (assoc :argmap argmap)
-                     basis-config (assoc :basis-config basis-config))
-        resolve-args (select-keys argmap [:extra-deps :override-deps :default-deps :threads :trace])
-        classpath-args (select-keys argmap [:extra-paths :classpath-overrides])
+        merged-edn (merge-edns [root-edn user-edn project-tooled-edn extra-edn])
+        basis (calc-basis merged-edn {:resolve-args argmap, :classpath-args argmap})]
+    (cond-> (assoc basis :basis-config basis-config)
+      (pos? (count argmap)) (assoc :argmap argmap)
 
-        ;; *** NOTE:
-        ;; Some callers expect to find other argmap stuff in these args
-        ;; (even though this isn't documented). To avoid breaking them, reset
-        ;; resolve-args and classpath-args to argmap.
-        ;; Once those tools have migrated, remove this:
-        resolve-args argmap
-        classpath-args argmap
-        ;; ***
-        ]
-    (calc-basis master-edn
-                (cond-> nil
-                  (pos? (count resolve-args)) (assoc :resolve-args resolve-args)
-                  (pos? (count classpath-args)) (assoc :classpath-args classpath-args)))))
+      ;; *** NOTE:
+      ;; Historically the basis included :resolve-args and :classpath-args
+      ;; which happened to contain all of the argmap. For a while, this
+      ;; will continue to be the case while users migrate to using
+      ;; :argmap for all of those needs. Eventually remove these:
+      (pos? (count argmap)) (assoc :resolve-args argmap)
+      (pos? (count argmap)) (assoc :classpath-args argmap)
+     )))
 
 ;; Load extensions
 (load "/clojure/tools/deps/extensions/maven")
