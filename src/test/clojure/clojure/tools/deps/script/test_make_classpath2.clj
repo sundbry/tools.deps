@@ -126,19 +126,19 @@
 
 ;; java opts in aliases are additive
 (deftest jvm-opts-add
-  (let [{:keys [jvm]} (mc/run-core {:install-deps install-data
-                                    :user-deps {:aliases {:j1 {:jvm-opts ["-server" "-Xms100m"]}}}
-                                    :project-deps {:aliases {:j2 {:jvm-opts ["-Xmx200m"]}}}
-                                    :repl-aliases [:j1 :j2]})]
-    (is (= ["-server" "-Xms100m" "-Xmx200m"] jvm))))
+  (let [core-ret (mc/run-core {:install-deps install-data
+                               :user-deps {:aliases {:j1 {:jvm-opts ["-server" "-Xms100m"]}}}
+                               :project-deps {:aliases {:j2 {:jvm-opts ["-Xmx200m"]}}}
+                               :repl-aliases [:j1 :j2]})]
+    (is (= ["-server" "-Xms100m" "-Xmx200m"] (-> core-ret :basis :argmap :jvm-opts)))))
 
 ;; main opts replace
 (deftest main-opts-replace
-  (let [{:keys [main]} (mc/run-core {:install-deps install-data
-                                     :user-deps {:aliases {:m1 {:main-opts ["a" "b"]}}}
-                                     :project-deps {:aliases {:m2 {:main-opts ["c"]}}}
-                                     :repl-aliases [:m1 :m2]})]
-    (is (= ["c"] main))))
+  (let [core-ret (mc/run-core {:install-deps install-data
+                               :user-deps {:aliases {:m1 {:main-opts ["a" "b"]}}}
+                               :project-deps {:aliases {:m2 {:main-opts ["c"]}}}
+                               :repl-aliases [:m1 :m2]})]
+    (is (= ["c"] (-> core-ret :basis :argmap :main-opts)))))
 
 ;; local manifests returned
 (deftest manifest-local
@@ -162,12 +162,13 @@
 
 ;; skip-cp flag still passes exec-args for -X or -T
 (deftest skip-cp-exec
-  (let [{:keys [execute-args]} (mc/run-core {:install-deps install-data
-                                             :project-deps {:deps {'org.clojure/clojure {:mvn/version "1.10.0"}}
-                                                            :aliases {:x {:exec-fn 'clojure.core/prn :exec-args {:a 1}}}}
-                                             :exec-aliases [:x]
-                                             :skip-cp true})]
-    (is (= {:exec-fn 'clojure.core/prn :exec-args {:a 1}} execute-args))))
+  (let [core-ret (mc/run-core {:install-deps install-data
+                               :project-deps {:deps {'org.clojure/clojure {:mvn/version "1.10.0"}}
+                                              :aliases {:x {:exec-fn 'clojure.core/prn :exec-args {:a 1}}}}
+                               :exec-aliases [:x]
+                               :skip-cp true})]
+    (is (submap? {:exec-fn 'clojure.core/prn, :exec-args {:a 1}}
+                 (-> core-ret :basis :argmap)))))
 
 (deftest removing-deps
   (let [{:keys [basis]} (mc/run-core {:install-deps install-data
@@ -214,7 +215,7 @@
 
 ;; clj -Tfoo
 (deftest tool-by-name
-  (let [{:keys [basis execute-args]}
+  (let [{:keys [basis]}
         (mc/run-core {:install-deps install-data
                       :user-deps {}
                       :project-deps {:deps {'cheshire/cheshire {:mvn/version "5.10.0"}}}
@@ -223,10 +224,10 @@
                       :tool-resolver {"foo" {:replace-deps {'org.clojure/data.json {:mvn/version "2.0.1"}}
                                              :replace-paths ["."]
                                              :ns-default 'a.b}}})
-        {:keys [libs classpath-roots classpath]} basis
+        {:keys [libs classpath-roots classpath argmap]} basis
         paths (filter #(get-in classpath [% :path-key]) classpath-roots)]
-    ;; execute-args in basis
-    (is (= {:ns-default 'a.b} execute-args))
+    ;; execute-args in basis argmap
+    (is (= (:ns-default argmap) 'a.b))
     ;; tool deps, not project deps
     (is (not (contains? libs 'cheshire/cheshire)))
     (is (contains? libs 'org.clojure/data.json))

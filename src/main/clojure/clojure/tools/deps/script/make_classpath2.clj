@@ -36,11 +36,8 @@
    [nil "--main-file PATH" "Main options file"]
    [nil "--manifest-file PATH" "Manifest list file"]
    [nil "--basis-file PATH" "Basis file"]
-   [nil "--exec-file PATH" "Exec args file"]
    [nil "--skip-cp" "Skip writing .cp files"]
    ;; aliases
-   ["-R" "--resolve-aliases ALIASES" "Concatenated resolve-deps alias names" :parse-fn parse/parse-kws]
-   ["-C" "--makecp-aliases ALIASES" "Concatenated make-classpath alias names" :parse-fn parse/parse-kws]
    ["-A" "--repl-aliases ALIASES" "Concatenated repl alias names" :parse-fn parse/parse-kws]
    ["-M" "--main-aliases ALIASES" "Concatenated main option alias names" :parse-fn parse/parse-kws]
    ["-X" "--exec-aliases ALIASES" "Concatenated exec alias names" :parse-fn parse/parse-kws]
@@ -80,14 +77,11 @@
     {;; Outputs:
      :basis        ;; the basis, including classpath roots
      :trace        ;; if requested, trace.edn file
-     :jvm          ;; effective jvm opts for .jvm file
-     :main         ;; effective main opts for .main file
      :manifests    ;; manifest files used in making classpath
-     :execute-args ;; for -X/-T
     }"
   [{:keys [install-deps user-deps project-deps config-data ;; all deps.edn maps
            tool-mode tool-name tool-resolver ;; -T options
-           resolve-aliases makecp-aliases main-aliases exec-aliases repl-aliases tool-aliases
+           main-aliases exec-aliases repl-aliases tool-aliases
            skip-cp threads trace tree] :as _opts}]
   (when (and main-aliases exec-aliases)
     (throw (ex-info "-M and -X cannot be used at the same time" {})))
@@ -108,31 +102,22 @@
         ;; calc basis
         merge-edn (deps/merge-edns [install-deps user-deps project-deps config-data (when tool-edn tool-edn)]) ;; recalc to get updated project-deps
         combined-exec-aliases (concat main-aliases exec-aliases repl-aliases tool-aliases (when tool-edn [:deps/TOOL]))
-        _ (check-aliases merge-edn (concat resolve-aliases makecp-aliases combined-exec-aliases))
-        resolve-argmap (deps/combine-aliases merge-edn (concat resolve-aliases combined-exec-aliases))
-        resolve-args (cond-> resolve-argmap
+        _ (check-aliases merge-edn combined-exec-aliases)
+        argmap (deps/combine-aliases merge-edn combined-exec-aliases)
+        resolve-args (cond-> argmap
                        threads (assoc :threads (Long/parseLong threads))
                        trace (assoc :trace trace)
                        tree (assoc :trace true))
-        cp-args (deps/combine-aliases merge-edn (concat makecp-aliases combined-exec-aliases))
-        exec-argmap (deps/combine-aliases merge-edn combined-exec-aliases)
-        execute-args (select-keys exec-argmap [:ns-default :ns-aliases :exec-fn :exec-args])
-        execute-args (let [arg-kw (:exec-args execute-args)]
-                       (if (keyword? arg-kw)
-                         (assoc execute-args :exec-args (get-in merge-edn [:aliases arg-kw]))
-                         execute-args))
-        basis (if skip-cp
-                nil
-                (deps/calc-basis
-                 (assoc merge-edn
-                        :basis-config (cond-> {} ;; :root and :project are always :standard
-                                        (nil? user-deps) (assoc :user nil) ;; -Srepro => :user nil
-                                        config-data (assoc :extra config-data)  ;; -Sdeps => :extra ...
-                                        (seq combined-exec-aliases) (assoc :aliases (vec combined-exec-aliases))))
-                 (cond-> nil
-                   resolve-args (assoc :resolve-args resolve-args)
-                   cp-args (assoc :classpath-args cp-args)
-                   execute-args (assoc :execute-args execute-args))))
+        basis (cond-> nil
+               (not skip-cp) (merge
+                              (deps/calc-basis merge-edn {:resolve-args resolve-args, :classpath-args argmap})
+                              {:basis-config (cond-> {} ;; :root and :project are always :standard
+                                               (nil? user-deps) (assoc :user nil) ;; -Srepro => :user nil
+                                               config-data (assoc :extra config-data)  ;; -Sdeps => :extra ...
+                                               (seq combined-exec-aliases) (assoc :aliases (vec combined-exec-aliases)))})
+                (pos? (count argmap)) (assoc :argmap argmap)
+                  ;; DEPRECATED, in the future remove :resolve-args here
+                (pos? (count resolve-args)) (assoc :resolve-args resolve-args))
         libs (:libs basis)
         trace (-> libs meta :trace)
 
@@ -141,23 +126,16 @@
 
         ;; determine manifest files to add to cache check
         manifests (->>
-                    (for [[lib coord] libs]
-                      (let [mf (ext/manifest-type lib coord basis)]
-                        (ext/manifest-file lib coord (:deps/manifest mf) basis)))
-                    (remove nil?)
-                    seq)
-
-        ;; handle jvm and main opts
-        jvm (seq (get exec-argmap :jvm-opts))
-        main (seq (get exec-argmap :main-opts))]
-    (when (and main repl-aliases)
+                   (for [[lib coord] libs]
+                     (let [mf (ext/manifest-type lib coord basis)]
+                       (ext/manifest-file lib coord (:deps/manifest mf) basis)))
+                   (remove nil?)
+                   seq)]
+    (when (and (-> argmap :main-opts seq) repl-aliases)
       (io/printerrln "WARNING: Use of :main-opts with -A is deprecated. Use -M instead."))
     (cond-> {:basis basis}
       trace (assoc :trace trace)
-      jvm (assoc :jvm jvm)
-      main (assoc :main main)  ;; FUTURE: narrow this to (and main main-aliases)
-      manifests (assoc :manifests manifests)
-      (pos? (count execute-args)) (assoc :execute-args execute-args))))
+      manifests (assoc :manifests manifests))))
 
 (defn read-deps
   [name]
@@ -176,13 +154,14 @@
 
 (defn run
   "Run make-classpath script. See -main for details."
-  [{:keys [config-user config-project cp-file jvm-file main-file basis-file manifest-file exec-file skip-cp trace tree] :as opts}]
+  [{:keys [config-user config-project cp-file jvm-file main-file basis-file manifest-file skip-cp trace tree] :as opts}]
   (let [opts' (merge opts {:install-deps (deps/root-deps)
                            :user-deps (read-deps config-user)
                            :project-deps (read-deps config-project)
                            :tool-resolver resolve-tool-args})
-        {:keys [basis jvm main manifests execute-args], trace-log :trace, :as basis} (run-core opts')
-        {:keys [libs classpath-roots]} basis]
+        {:keys [basis manifests], trace-log :trace} (run-core opts')
+        {:keys [argmap libs classpath-roots]} basis
+        {:keys [jvm-opts main-opts]} argmap]
     (when trace
       (spit "trace.edn" (binding [*print-namespace-maps* false] (with-out-str (pprint/pprint trace-log)))))
     (when tree
@@ -190,11 +169,9 @@
     (when-not skip-cp
       (io/write-file cp-file (-> classpath-roots deps/join-classpath)))
     (io/write-file basis-file (binding [*print-namespace-maps* false] (pr-str basis)))
-    (write-lines jvm jvm-file)
-    (write-lines main main-file)
-    (write-lines manifests manifest-file)
-    (when execute-args
-      (io/write-file exec-file (binding [*print-namespace-maps* false] (pr-str execute-args))))))
+    (write-lines (seq jvm-opts) jvm-file)
+    (write-lines (seq main-opts) main-file)  ;; FUTURE: add check to only do this if main-aliases were passed
+    (write-lines manifests manifest-file)))
 
 (defn -main
   "Main entry point for make-classpath script.
@@ -210,9 +187,6 @@
     --main-file=path - main opts file to write
     --manifest-file=path - manifest list file to write
     --basis-file=path - basis file to write
-    --exec-file=path - exec file to write
-    -Rresolve-aliases - concatenated resolve-deps alias names
-    -Cmakecp-aliases - concatenated make-classpath alias names
     -Mmain-aliases - concatenated main-opt alias names
     -Aaliases - concatenated repl alias names
     -Xaliases - concatenated exec alias names
@@ -222,8 +196,7 @@
   The cp file is at <cachedir>/<hash>.cp
   The main opts file is at <cachedir>/<hash>.main (if needed)
   The jvm opts file is at <cachedir>/<hash>.jvm (if needed)
-  The manifest file is at <cachedir>/<hash>.manifest (if needed)
-  The exec file is at <cachedir>/<hash>.exec (if needed)"
+  The manifest file is at <cachedir>/<hash>.manifest (if needed)"
   [& args]
   (try
     (let [{:keys [options errors]} (parse-opts args)]
