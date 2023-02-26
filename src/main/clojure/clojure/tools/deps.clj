@@ -853,6 +853,37 @@
       (pos? (count argmap)) (assoc :classpath-args argmap)
      )))
 
+(defn resolve-added-libs
+  "Given an existing map of current libs and a map of libs to add,
+   resolve and download the transitive set of libs that fulfill the
+   added libs and/or detect libs that conflict with the existing libs.
+   Results are printed as edn.
+
+   Keys in input map:
+     :existing - map of current lib to coord
+     :add - map of lib to coords to add
+     :procurer - procurer config from basis, if any
+
+   Returns a map of:
+     :added - map of added libs to resolved coords (has :paths)
+     :conflict - coll of requested libs that conflict with existing libs"
+  [{:keys [existing add procurer]}]
+  (let [add-canon (reduce-kv (fn [m k v] (conj m (ext/canonicalize k v procurer))) {} add)
+        combined (merge add-canon existing)  ;; existing coords override!
+        resolved (resolve-deps (assoc procurer :deps combined) nil) ;; orig + add + transitive
+        orig-libs (-> existing keys set)
+        new-libs (-> resolved keys set)
+        added (select-keys resolved (vec (set/difference new-libs orig-libs)))
+        conflict (reduce-kv (fn [c lib add-coord]
+                              (if (zero? (ext/compare-versions lib add-coord (get resolved lib) procurer))
+                                c
+                                (conj c lib)))
+                            [] add-canon)
+        result (cond-> {}
+                 (pos? (count added)) (assoc :added added)
+                 (pos? (count conflict)) (assoc :conflict conflict))]
+    result))
+
 ;; Load extensions
 (load "/clojure/tools/deps/extensions/maven")
 (load "/clojure/tools/deps/extensions/local")
