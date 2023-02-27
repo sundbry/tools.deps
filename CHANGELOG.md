@@ -3,6 +3,8 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
+* next
+  * TDEPS-235 - allow http repo if `CLOJURE_CLI_ALLOW_HTTP_REPO` env is set
 * 0.16.1281 on Feb 12, 2023
   * Update to tools.gitlibs 2.5.190
 * 0.16.1277 on Feb 12, 2023

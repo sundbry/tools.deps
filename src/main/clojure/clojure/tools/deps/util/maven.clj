@@ -131,7 +131,7 @@
   (^RemoteRepository [repo-entry]
    (remote-repo repo-entry (get-settings)))
   (^RemoteRepository [[^String name {:keys [url snapshots releases] :as repo-config}] ^Settings settings]
-   (when (str/starts-with? url "http:")
+   (when (and (str/starts-with? url "http:") (nil? (System/getenv "CLOJURE_CLI_ALLOW_HTTP_REPO")))
      (throw (ex-info (str "Invalid repo url (http not supported): " url) (or repo-config {}))))
    (let [builder (RemoteRepository$Builder. name "default" url)
          maybe-repo (.build builder)
