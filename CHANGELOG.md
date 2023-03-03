@@ -3,6 +3,9 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
+* 0.17.1297 on Mar 3, 2023
+  * Add new function - resolve-added-libs
+  * Add new data to basis - :basis-config and :argmap
 * 0.16.1285 on Feb 27, 2023
   * TDEPS-235 - allow http repo if `CLOJURE_CLI_ALLOW_HTTP_REPO` env is set
 * 0.16.1281 on Feb 12, 2023
