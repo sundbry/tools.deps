@@ -3,6 +3,8 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
+* next
+  * Update to tools.deps.cli 0.9.17
 * 0.17.1297 on Mar 3, 2023
   * Add new function - resolve-added-libs
   * Add new data to basis - :basis-config and :argmap
