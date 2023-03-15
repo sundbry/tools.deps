@@ -842,16 +842,7 @@
         merged-edn (merge-edns [root-edn user-edn project-tooled-edn extra-edn])
         basis (calc-basis merged-edn {:resolve-args argmap, :classpath-args argmap})]
     (cond-> (assoc basis :basis-config basis-config)
-      (pos? (count argmap)) (assoc :argmap argmap)
-
-      ;; *** NOTE:
-      ;; Historically the basis included :resolve-args and :classpath-args
-      ;; which happened to contain all of the argmap. For a while, this
-      ;; will continue to be the case while users migrate to using
-      ;; :argmap for all of those needs. Eventually remove these:
-      (pos? (count argmap)) (assoc :resolve-args argmap)
-      (pos? (count argmap)) (assoc :classpath-args argmap)
-     )))
+      (pos? (count argmap)) (assoc :argmap argmap))))
 
 (defn resolve-added-libs
   "Given an existing map of current libs and a map of libs to add,

@@ -115,9 +115,7 @@
                                                (nil? user-deps) (assoc :user nil) ;; -Srepro => :user nil
                                                config-data (assoc :extra config-data)  ;; -Sdeps => :extra ...
                                                (seq combined-exec-aliases) (assoc :aliases (vec combined-exec-aliases)))})
-                (pos? (count argmap)) (assoc :argmap argmap)
-                  ;; DEPRECATED, in the future remove :resolve-args here
-                (pos? (count resolve-args)) (assoc :resolve-args resolve-args))
+                (pos? (count argmap)) (assoc :argmap argmap))
         libs (:libs basis)
         trace (-> libs meta :trace)
 
