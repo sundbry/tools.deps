@@ -99,6 +99,11 @@
   [_lib coord _manifest _config]
   [(:local/root coord)])
 
+;; 0 if x and y are the same jar or dir
+(defmethod ext/compare-versions [:local :local]
+  [_lib {x-root :local/root} {y-root :local/root} _config]
+  (compare x-root y-root))
+
 (defmethod ext/manifest-file :jar
   [_lib {:keys [deps/root] :as _coord} _mf _config]
   nil)

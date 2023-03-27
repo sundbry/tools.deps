@@ -483,6 +483,15 @@
        :basis-config {:root nil, :user nil, :aliases [:a1 :a2]} ;; aliases remembered
        })))
 
+(deftest test-resolved-added-libs
+  (let [basis (deps/create-basis {:user nil :project nil})
+        libs (:libs basis)]
+    (are [add] (contains? (:added (deps/resolve-added-libs {:existing libs, :procurer basis, :add add}))
+                          (key (first add)))
+      '{org.clojure/tools.cli {:mvn/version "1.0.214"}}
+      '{io.github.clojure/tools.deps.graph {:git/tag "v1.1.76" :git/sha "6c58e98"}}
+      '{org.clojure/tools.deps {:local/root "."}})))
+
 (comment
-  (test-create-basis-full)
+  (test-resolved-added-libs)
   )
