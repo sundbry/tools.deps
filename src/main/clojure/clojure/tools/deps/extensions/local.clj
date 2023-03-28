@@ -101,8 +101,11 @@
 
 ;; 0 if x and y are the same jar or dir
 (defmethod ext/compare-versions [:local :local]
-  [_lib {x-root :local/root} {y-root :local/root} _config]
-  (compare x-root y-root))
+  [lib {x-root :local/root :as x} {y-root :local/root :as y} _config]
+  (if (= x-root y-root)
+    0
+    (throw (ex-info (str "No known ancestor relationship between local versions for " lib ": " x-root " and " y-root)
+                    {:lib lib :x x :y y}))))
 
 (defmethod ext/manifest-file :jar
   [_lib {:keys [deps/root] :as _coord} _mf _config]

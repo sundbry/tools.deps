@@ -3,6 +3,8 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
+* next
+  * Error on version comparing local deps with different roots (as we do with git)
 * 0.18.1317 on Mar 27, 2023
   * Update to tools.deps.cli 0.9.30
 * 0.18.1312 on Mar 27, 2023
