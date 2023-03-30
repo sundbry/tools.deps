@@ -3,6 +3,8 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
+* next
+  * TDEPS-245 - Fix error in -X:deps find-versions with an uncanonicalized lib name
 * 0.18.1323 on Mar 30, 2023
   * Add clojure.tools.deps/find-latest-version
   * Modify :mvn procurer to filter snapshots in find-versions, which was the intent

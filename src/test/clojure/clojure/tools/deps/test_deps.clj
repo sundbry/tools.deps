@@ -492,6 +492,10 @@
       '{io.github.clojure/tools.deps.graph {:git/tag "v1.1.76" :git/sha "6c58e98"}}
       '{org.clojure/tools.deps {:local/root "."}})))
 
+(deftest test-find-all-versions
+  (is (seq (ext/find-all-versions 'ragtime nil {:mvn/repos mvn/standard-repos}))))
+
 (comment
   (test-resolved-added-libs)
+  (test-find-all-versions)
   )

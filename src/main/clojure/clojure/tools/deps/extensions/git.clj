@@ -27,10 +27,11 @@
   [lib]
   (let [group (namespace lib)
         project (name lib)]
-    (some (fn [{:keys [service url]}]
-            (when-let [matches (re-matches service group)]
-              (format url (second matches) project)))
-      (vals git-services))))
+    (when group
+      (some (fn [{:keys [service url]}]
+              (when-let [matches (re-matches service group)]
+                (format url (second matches) project)))
+            (vals git-services)))))
 
 (defn full-sha?
   [sha]
