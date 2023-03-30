@@ -875,6 +875,14 @@
                  (pos? (count conflict)) (assoc :conflict conflict))]
     result))
 
+(defn find-latest-version
+  "Find versions of lib across all registered procurer types, and return
+  latest version of coord from the first procurer type that has any coords,
+  starting with :mvn, then :git. If none are found, return nil."
+  [{:keys [lib procurer]}]
+  (let [types (distinct (into [:mvn :git] (ext/procurer-types)))]
+    (last (some #(ext/find-versions lib nil % procurer) types))))
+
 ;; Load extensions
 (load "/clojure/tools/deps/extensions/maven")
 (load "/clojure/tools/deps/extensions/local")
@@ -884,6 +892,9 @@
 
 (comment
   (require '[clojure.tools.deps.util.maven :as mvn])
+
+  (find-latest-version {:lib 'io.github.clojure/tools.tools
+                        :procurer {:mvn/repos mvn/standard-repos}})
 
   (def ex-svc (concurrent/new-executor 2))
 
