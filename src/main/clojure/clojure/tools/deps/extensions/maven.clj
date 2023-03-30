@@ -192,7 +192,11 @@
         result (.resolveVersionRange system session req)
         versions (.getVersions result)]
     (when (seq versions)
-      (into [] (map (fn [v] {:mvn/version (.toString ^Version v)}) versions)))))
+      (->> versions
+           (map str)
+           (remove #(str/ends-with? % "-SNAPSHOT"))
+           (map #(hash-map :mvn/version %))
+           (into [])))))
 
 (defmethod ext/coord-usage :mvn
   [lib {:keys [deps/root]} manifest-type config]

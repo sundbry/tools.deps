@@ -881,6 +881,7 @@
   starting with :mvn, then :git. If none are found, return nil."
   [{:keys [lib procurer]}]
   (let [types (distinct (into [:mvn :git] (ext/procurer-types)))]
+    (println "found versions: " (some #(ext/find-versions lib nil % procurer) types))
     (last (some #(ext/find-versions lib nil % procurer) types))))
 
 ;; Load extensions
@@ -893,6 +894,7 @@
 (comment
   (require '[clojure.tools.deps.util.maven :as mvn])
 
+  (find-latest-version {:lib 'org.clojure/data.json :procurer {:mvn/repos mvn/standard-repos}})
   (find-latest-version {:lib 'io.github.clojure/tools.tools
                         :procurer {:mvn/repos mvn/standard-repos}})
 
