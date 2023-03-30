@@ -3,7 +3,7 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
-* next
+* 0.18.1323 on Mar 30, 2023
   * Add clojure.tools.deps/find-latest-version
   * Modify :mvn procurer to filter snapshots in find-versions, which was the intent
   * Throw when version comparing local deps with different roots (as we do with git)
