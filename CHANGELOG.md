@@ -3,6 +3,8 @@ Changelog
 
 *Also see [Tools and installer changelog](https://github.com/clojure/brew-install/blob/1.10.3/CHANGELOG.md)*
 
+* next
+  * Fix regression in -Spom
 * 0.18.1331 on Mar 31, 2023
   * Update to tools.deps.cli 0.9.35
 * 0.18.1327 on Mar 30, 2023

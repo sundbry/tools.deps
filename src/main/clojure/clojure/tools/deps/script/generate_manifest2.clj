@@ -46,10 +46,11 @@
       (System/exit 1))
     (let [{:keys [gen config-user config-project]} options]
       (try
-        (let [mod-map (makecp/run-core (merge options
+        (let [basis-map (makecp/run-core (merge options
                                          {:install-deps (deps/root-deps)
                                           :user-deps (makecp/read-deps config-user)
                                           :project-deps (makecp/read-deps config-project)}))
+              mod-map (:basis basis-map)
               ;; treat all transitive deps as top-level deps
               updated-deps (reduce-kv (fn [m lib {:keys [dependents] :as coord}]
                                         (if (seq dependents) m (assoc m lib coord)))
