@@ -170,7 +170,9 @@
   "Helper to form the path to the default local repo - use `@cached-local-repo` for
   caching delayed value"
   []
-  (.getAbsolutePath (jio/file (System/getProperty "user.home") ".m2" "repository")))
+  (.getAbsolutePath
+    (or (some-> (System/getProperty "maven.repo.local") (jio/file))
+        (jio/file (System/getProperty "user.home") ".m2" "repository"))))
 
 (def default-local-repo
   "DEPRECATED - use `@cached-local-repo`"
